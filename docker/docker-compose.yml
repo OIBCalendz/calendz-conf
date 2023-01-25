@@ -50,7 +50,7 @@ services:
   calendz-database:
     container_name: calendz-database
     hostname: calendz-database
-    image: mongo:3.6
+    image: mongo:latest
     restart: on-failure
     ports:
       - "27017:27017"
@@ -68,9 +68,10 @@ services:
       context: ../../calendz-front
       dockerfile: Dockerfile
     image: calendz-front:latest
-    restart: on-failure
+#    restart: on-failure
     volumes:
       - ../../calendz-front:/usr/src/app
+      - ../../calendz-front-npm-log:/root/.npm/_logs
       - /usr/src/app/node_modules
     ports:
       - 8080:8080
@@ -79,7 +80,7 @@ services:
     depends_on:
       - calendz-api
       - calendz-api-calendar
-    command: npm run serve
+    command: npm run dev
 
   calendz-redis:
     container_name: calendz-redis
