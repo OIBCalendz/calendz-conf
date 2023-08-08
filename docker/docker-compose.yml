@@ -1,12 +1,44 @@
 version: '3.7'
 
 networks:
-  backend:
+  reverse:
     driver: bridge
+    internal: false
   frontend:
-    driver: bridge
+    internal: true
+  backend-api:
+    internal: true
+  backend-calendar:
+    internal: true
+  redis:
+    internal: true
+  mongo:
+    internal: true
 
 services:
+  # =============================================
+  # == CALENDZ-NGINX
+  # =============================================
+  calendz-nginx:
+    container_name: calendz-nginx
+    hostname: calendz-nginx
+    build:
+      context: ../nginx
+      dockerfile: Dockerfile
+    image: calendz/nginx:latest
+    restart: always
+    volumes:
+      - ../nginx/conf:/etc/nginx/conf.d
+      - ../../calendz-front/dist:/var/www/calendz
+    networks:
+      - reverse
+      - frontend
+      - backend-api
+      - backend-calendar
+    ports:
+      - "8800:80"
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
   calendz-api-calendar:
     container_name: calendz-api-calendar
     hostname: calendz-api-calendar
@@ -18,11 +50,9 @@ services:
     volumes:
       - ../../calendz-api-calendar:/usr/src/app
       - /usr/src/app/node_modules
-    ports:
-      - "3000:3333"
     networks: 
-      - frontend
-      - backend
+      - backend-calendar
+      - redis
     depends_on:
       - calendz-redis
     command: npm run dev
@@ -38,11 +68,9 @@ services:
     volumes:
       - ../../calendz-api:/usr/src/app
       - /usr/src/app/node_modules
-    ports:
-      - "3001:3001"
     networks:
-      - frontend
-      - backend
+      - backend-api
+      - mongo
     depends_on:
       - calendz-database
     command: npm run dev
@@ -52,10 +80,8 @@ services:
     hostname: calendz-database
     image: mongo:latest
     restart: on-failure
-    ports:
-      - "27017:27017"
     networks: 
-      - backend
+      - mongo
     environment:
       MONGO_INITDB_DATABASE: calendz
       MONGO_INITDB_ROOT_USERNAME: username
@@ -73,8 +99,6 @@ services:
       - ../../calendz-front:/usr/src/app
       - ../../calendz-front-npm-log:/root/.npm/_logs
       - /usr/src/app/node_modules
-    ports:
-      - 8080:8080
     networks: 
       - frontend
     depends_on:
@@ -87,8 +111,6 @@ services:
     hostname: calendz-redis
     image: redis:5.0.6-alpine3.10
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     networks: 
-      - backend
+      - redis
     command: redis-server
